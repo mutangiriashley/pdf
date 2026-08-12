@@ -176,12 +176,12 @@ async function startServer() {
       const pdfData = await pdfParse(req.file.buffer, options);
 
       // Split text by page markers
-      const pageTexts = pdfData.text.split(/\[PAGE (\d+)\]/).filter(Boolean);
+      const pageParts = pdfData.text.split(/\[PAGE (\d+)\]/);
       
       let rawChunks = [];
-      for (let i = 0; i < pageTexts.length; i += 2) {
-        const pageNum = pageTexts[i];
-        const text = pageTexts[i + 1];
+      for (let i = 1; i < pageParts.length; i += 2) {
+        const pageNum = pageParts[i];
+        const text = pageParts[i + 1];
         if (text && text.trim().length > 0) {
           rawChunks.push({
             id: `page_${pageNum}`,
