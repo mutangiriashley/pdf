@@ -126,8 +126,9 @@ async function answerWithOpenRouter(question: string, context: string) {
   });
   
   if (!response.ok) {
-    console.error("OpenRouter API Error:", await response.text());
-    throw new Error("Failed to fetch response from OpenRouter");
+    const errorText = await response.text();
+    console.error("OpenRouter API Error:", errorText);
+    throw new Error(`OpenRouter API Error: ${errorText}`);
   }
   
   const data = await response.json();
