@@ -9,7 +9,7 @@ import cors from 'cors';
 // Disable local models to force downloading from HF on first run, suppresses some warnings
 env.allowLocalModels = false;
 
-const OPENROUTER_API_KEY = "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";
+// We will use process.env.OPENROUTER_API_KEY instead of hardcoding it
 
 type Chunk = { id: string; text: string; source: string; embedding: number[] };
 let vectorDB: Chunk[] = [];
@@ -102,10 +102,10 @@ async function answerWithOpenRouter(question: string, context: string) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": process.env.APP_URL || "http://localhost:3000",
-      "X-Title": "AI Studio Handbook App"
+      "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
       model: "google/gemma-2-9b-it:free", // Reliable fast model on OpenRouter
