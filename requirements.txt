@@ -1,0 +1,12 @@
+# System Requirements
+Node.js >= 18.0.0
+
+# Core Dependencies (npm packages)
+express
+pdf-parse
+@xenova/transformers
+multer
+cors
+vite
+react
+lucide-react
