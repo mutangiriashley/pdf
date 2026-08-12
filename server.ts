@@ -99,6 +99,9 @@ function render_page(pageData: any) {
 }
 
 async function answerWithOpenRouter(question: string, context: string) {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error("Missing OPENROUTER_API_KEY in environment variables. Please add it to your Railway variables.");
+  }
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -146,6 +149,14 @@ async function startServer() {
     res.json({
       status: globalModelStatus,
       progress: globalModelProgress
+    });
+  });
+
+  app.get('/api/debug', (req, res) => {
+    res.json({
+      openRouterKeySet: !!process.env.OPENROUTER_API_KEY,
+      nodeEnv: process.env.NODE_ENV || 'development',
+      vectorDbSize: vectorDB.length
     });
   });
 
@@ -335,7 +346,7 @@ async function startServer() {
       res.json({ answer, source, latency });
     } catch (error: any) {
       console.error("/ask error:", error);
-      res.status(500).json({ error: "Internal server error." });
+      res.status(500).json({ error: error.message || "Internal server error." });
     }
   });
 
