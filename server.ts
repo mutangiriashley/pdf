@@ -111,7 +111,7 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "google/gemma-2-9b-it:free", // Reliable fast model on OpenRouter
+      model: "meta-llama/llama-3.1-8b-instruct:free", // Reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
@@ -282,7 +282,7 @@ async function startServer() {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "google/gemma-2-9b-it:free",
+            model: "meta-llama/llama-3.1-8b-instruct:free",
             messages: [
               { role: "system", content: "You are a helpful assistant. Answer the user's question based ONLY on the provided context. If you don't know, say 'I don't know'." },
               { role: "user", content: `Context:\n${contextText}\n\nQuestion:\n${question}` }
