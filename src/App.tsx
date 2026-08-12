@@ -76,6 +76,19 @@ export default function App() {
     setUploading(false);
   };
 
+  const handleDebug = async () => {
+    try {
+      const res = await fetch('/api/debug');
+      const data = await res.json();
+      setMessages(prev => [...prev, { 
+        role: 'rag', 
+        content: `DEBUG INFO:\nAPI Key Set: ${data.openRouterKeySet}\nEnv: ${data.nodeEnv}\nVector DB Size: ${data.vectorDbSize}` 
+      }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'rag', content: `DEBUG ERROR: Failed to fetch debug info` }]);
+    }
+  };
+
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
@@ -127,7 +140,12 @@ export default function App() {
             </span>
             <span className="tracking-widest">VECTOR DB: <span className={t.textMain}>LOCAL-IN-MEMORY</span></span>
             <div className="flex items-center gap-4">
-              <span className={`border ${t.borderMuted} px-3 py-1.5 rounded-full ${t.card} tracking-widest`}>API KEY: SK-OR-V1...DFA</span>
+              <button 
+                onClick={handleDebug}
+                className={`border ${t.borderMuted} px-3 py-1.5 rounded-full ${t.cardHover} tracking-widest uppercase font-bold text-[10px] transition-colors`}
+              >
+                DEBUG
+              </button>
               <button 
                 onClick={() => setIsDark(!isDark)}
                 className={`p-2 rounded-full border ${t.borderMuted} ${t.cardHover} transition-colors`}
@@ -264,7 +282,7 @@ export default function App() {
                       {msg.role === 'user' ? 'USR' : <span className={t.textHighlight}>RAG</span>}
                     </div>
                     <div className="flex-1">
-                      <div className={`${msg.role === 'user' ? t.bubbleUser : t.bubbleRag} rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-sm transition-colors`}>
+                      <div className={`${msg.role === 'user' ? t.bubbleUser : t.bubbleRag} rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-sm transition-colors whitespace-pre-wrap`}>
                         {msg.content}
                       </div>
                       {msg.role === 'rag' && msg.source && (
