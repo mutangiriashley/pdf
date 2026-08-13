@@ -1,5 +1,7 @@
-# pdf analyzer rag
+# pdf analyzer rag 
 
-hey, so i built this pdf analyzer app as an assignment that lets you chat with your documents using rag. i designed it with a pretty slick dark mode ui, but the main thing i was focusing on was keeping the data extraction private and getting it ready for my n8n workflows. 
+// if yall would like to try it out, here is my railway link: https://pdf-production-6eae.up.railway.app 
+
+so i built this pdf analyzer app as a zaio assignment that lets you chat with your documents using rag. i designed it with a pretty slick dark mode ui, but the main thing i was focusing on was keeping the data extraction on device and getting it ready for my n8n workflows. 
 
 here's how i got the embeddings working under the hood. i wanted to make sure none of the pdf text was being sent to external apis just to get vectorized, so i set it up to run 100% locally on the server using the xenova/transformers library. basically, when you drop a pdf in, the backend rips the text out and chops it up into 512-character chunks with a little bit of overlap. then it feeds those chunks into the all-MiniLM-L6-v2 model running right inside node.js, which turns every chunk into a 384-dimensional vector list of numbers and holds it in the server's memory. when you type a question, it vectorizes what you asked, runs a quick cosine similarity math check to find which chunks in memory point in the same direction, and grabs the top 3 matches. after it finds the most relevant context, it finally reaches out to openrouter with just those specific chunks to formulate the actual answer. it took a bit of work to get the huggingface model to stream its download progress straight to the frontend, but now you can actually see it initializing when the server boots up so enjoy yall
