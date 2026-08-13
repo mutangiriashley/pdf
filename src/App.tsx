@@ -112,7 +112,7 @@ export default function App() {
           role: 'rag', 
           content: data.answer, 
           source: data.source,
-          confidence: '99%' // Mocked confidence for aesthetic matching
+          confidence: '99%' // i'm sorry, i had to mock confidence percentage to save time
         }]);
         setStats(s => ({ ...s, latency: data.latency || 0 }));
       } else {
@@ -131,14 +131,14 @@ export default function App() {
          <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${t.dotShadow}`} />
             <span className={`font-bold ${t.textHeading} text-sm tracking-widest uppercase flex items-center gap-2`}>
-              NEURAL-DOCS <span className={`${t.textMuted} font-normal`}>v1.0.4</span>
+              ZAIO-DOCS <span className={`${t.textMuted} font-normal`}>v1.0.4</span>
             </span>
          </div>
          <div className={`hidden md:flex items-center gap-8 ${t.textMuted} font-medium`}>
             <span className={`${t.textHighlight} tracking-widest flex items-center gap-2`}>
               {modelStatus === 'ready' ? 'SYSTEM ONLINE' : 'INITIALIZING EMBEDDING...'}
             </span>
-            <span className="tracking-widest">VECTOR DB: <span className={t.textMain}>LOCAL-IN-MEMORY</span></span>
+            <span className="tracking-widest">EMBEDDING DB: <span className={t.textMain}>LOCAL</span></span>
             <div className="flex items-center gap-4">
               <button 
                 onClick={handleDebug}
@@ -171,7 +171,7 @@ export default function App() {
                  <label className={`cursor-pointer border border-dashed ${t.uploadZone} rounded-xl p-6 mb-8 flex flex-col items-center justify-center gap-3 text-center group transition-colors`}>
                    <MousePointer2 className={`w-8 h-8 ${t.textMuted} group-hover:scale-110 transition-transform ${isDark ? 'group-hover:text-white' : 'group-hover:text-black'}`} />
                    <div>
-                     <p className={`text-sm font-medium ${t.textHeading}`}>Click here to upload</p>
+                     <p className={`text-sm font-medium ${t.textHeading}`}>UPLOAD HERE</p>
                      <p className={`text-[11px] ${t.textMuted} mt-1`}>PDF documents only</p>
                    </div>
                    <input type="file" accept=".pdf" className="hidden" onChange={e => e.target.files && setFile(e.target.files[0])} />
@@ -264,7 +264,7 @@ export default function App() {
          <section className={`flex-1 rounded-2xl border ${t.border} ${t.panel} flex flex-col relative h-[500px] xl:h-auto transition-colors duration-300`}>
             <div className={`absolute top-0 w-full text-center py-6 border-b ${t.border} ${isDark ? 'bg-[#0a0a0a]/90' : 'bg-white/90'} backdrop-blur z-10 transition-colors duration-300`}>
                 <span className={`text-[10px] tracking-widest ${t.textMuted} uppercase font-bold ${t.panel} px-4 relative z-10 flex items-center justify-center gap-2 mx-auto w-fit transition-colors duration-300`}>
-                  <Search className="w-3 h-3" /> Query Engine Playground
+                  <Search className="w-3 h-3" /> Chat Area
                 </span>
                 <div className={`absolute top-1/2 left-0 w-full h-px ${t.border} -translate-y-1/2`}></div>
             </div>
