@@ -111,7 +111,7 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "nvidia/nemotron-3-ultra-550b-a55b:free", // Reliable fast model on OpenRouter
+      model: "google/gemma-4-26b-a4b-it:free", // its a reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
