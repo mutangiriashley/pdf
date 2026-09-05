@@ -113,7 +113,7 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "meta-llama/llama-3.1-8b-instruct:free", // Reliable fast model on OpenRouter
+      model: "thinkingmachines/inkling:free", // Reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
@@ -385,6 +385,33 @@ async function startServer() {
     } catch (error: any) {
       console.error("/ask error:", error);
       res.status(500).json({ error: error.message || "Internal server error." });
+    }
+  });
+
+  // Endpoint to securely trigger n8n from the frontend
+  app.post('/api/trigger-n8n', async (req, res) => {
+    try {
+      const { question, name, email } = req.body;
+      const webhookUrl = process.env.N8N_WEBHOOK_URL;
+      
+      if (!webhookUrl) {
+        return res.status(500).json({ error: "N8N_WEBHOOK_URL is not configured in the server environment variables." });
+      }
+
+      const n8nRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, name, email })
+      });
+
+      if (n8nRes.ok) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: "n8n webhook responded with an error." });
+      }
+    } catch (error: any) {
+      console.error("/api/trigger-n8n error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
