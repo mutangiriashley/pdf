@@ -5,6 +5,8 @@ import { pipeline, env } from '@xenova/transformers';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import cors from 'cors';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 // Disable local models to force downloading from HF on first run, suppresses some warnings
 env.allowLocalModels = false;
@@ -111,11 +113,11 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "google/gemma-4-26b-a4b-it:free", // its a reliable fast model on OpenRouter
+      model: "meta-llama/llama-3.1-8b-instruct:free", // Reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant answering questions based strictly on the provided handbook context. If the answer is not in the context, say 'I don't know based on the provided handbook.'"
+          content: "You are an assistant answering questions based STRICTLY on the provided context. If the required information cannot be found in either source, your assistant must respond with: 'I could not find that information in the available knowledge base.'"
         },
         {
           role: "user",
@@ -161,6 +163,59 @@ async function startServer() {
     });
   });
 
+  // New endpoint to crawl ZAIO website
+  app.post('/api/crawl-zaio', async (req, res) => {
+    try {
+      const url = "https://www.zaio.io";
+      const response = await axios.get(url);
+      const $ = cheerio.load(response.data);
+      
+      // Clean extracted content
+      $('nav, header, footer, script, style, noscript').remove();
+      const text = $('body').text().replace(/\s+/g, ' ').trim();
+      
+      // Chunking by sentences, grouped up to ~500 chars
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      let chunks = [];
+      let current = "";
+      for (const s of sentences) {
+        if ((current + s).length > 500 && current.length > 0) {
+          chunks.push(current.trim());
+          current = "";
+        }
+        current += s + " ";
+      }
+      if (current.trim().length > 0) chunks.push(current.trim());
+      
+      const startTime = Date.now();
+      let addedCount = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkText = chunks[i];
+        if (chunkText.length < 10) continue;
+        const embedding = await generateEmbedding(chunkText);
+        vectorDB.push({
+          id: `web_${Date.now()}_${i}`,
+          text: chunkText,
+          source: url,
+          embedding
+        });
+        addedCount++;
+      }
+      
+      res.json({ 
+        message: "ZAIO website crawled successfully",
+        addedChunks: addedCount, 
+        totalVectorSize: vectorDB.length,
+        vectorSize: vectorDB.length > 0 ? vectorDB[0].embedding.length : 0,
+        chunkingLogic: 'Sentence grouped (max 500 chars)',
+        latency: Date.now() - startTime
+      });
+    } catch (error: any) {
+      console.error("/api/crawl-zaio error:", error);
+      res.status(500).json({ error: error.message || "Failed to crawl website." });
+    }
+  });
+
   // Part 1: API Endpoint to upload the handbook, extract text, chunk and embed.
   app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
@@ -186,7 +241,7 @@ async function startServer() {
           rawChunks.push({
             id: `page_${pageNum}`,
             text: text.trim(),
-            source: `Page ${pageNum}`
+            source: `Student Handbook - Page ${pageNum}`
           });
         }
       }
@@ -226,7 +281,7 @@ async function startServer() {
         message: `Extraction complete.`,
         chunks: vectorDB.length,
         latency: latency,
-        vectorSize: 384,
+        vectorSize: vectorDB.length > 0 ? vectorDB[0].embedding.length : 0,
         chunkingLogic: '512 chars / 100 overlap'
       });
     } catch (error: any) {
@@ -256,7 +311,7 @@ async function startServer() {
       }
 
       if (vectorDB.length === 0) {
-        return res.status(400).json({ error: "Vector database is empty. Please upload the handbook first." });
+        return res.status(400).json({ error: "Vector database is empty. Please upload the handbook or crawl the website first." });
       }
 
       const embedder = await Embedder.getInstance();
@@ -271,32 +326,14 @@ async function startServer() {
       const topChunks = results.slice(0, 3);
       const contextText = topChunks.map(c => `Source: ${c.source}\n${c.text}`).join("\n\n");
 
-      let answer = "Simulated local answer based on context. (Remove mock for real integration)";
-      let source = topChunks.length > 0 ? topChunks[0].source : "Unknown";
-
-      if (process.env.OPENROUTER_API_KEY) {
-        const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "meta-llama/llama-3.1-8b-instruct:free",
-            messages: [
-              { role: "system", content: "You are a helpful assistant. Answer the user's question based ONLY on the provided context. If you don't know, say 'I don't know'." },
-              { role: "user", content: `Context:\n${contextText}\n\nQuestion:\n${question}` }
-            ]
-          })
-        });
-        
-        if (orRes.ok) {
-          const orData = await orRes.json();
-          if (orData.choices && orData.choices.length > 0) {
-            answer = orData.choices[0].message.content;
-          }
-        }
+      let answer;
+      try {
+        answer = await answerWithOpenRouter(question, contextText);
+      } catch (e: any) {
+        return res.status(500).json({ error: e.message });
       }
+
+      let source = topChunks.length > 0 ? topChunks[0].source : "Unknown";
 
       const latency = Date.now() - startTime;
 
@@ -322,7 +359,7 @@ async function startServer() {
       }
 
       if (vectorDB.length === 0) {
-        return res.status(400).json({ error: "Vector database is empty. Please upload the handbook first via /api/upload." });
+        return res.status(400).json({ error: "Vector database is empty. Please upload the handbook or crawl the website first." });
       }
 
       // Step 1: Generate embedding for the question
