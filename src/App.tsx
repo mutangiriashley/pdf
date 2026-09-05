@@ -23,9 +23,21 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [showN8nModal, setShowN8nModal] = useState(false);
+  const [n8nConfig, setN8nConfig] = useState({ name: '', email: '' });
+  const [sendViaN8n, setSendViaN8n] = useState(false);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('n8n_name');
+    const savedEmail = localStorage.getItem('n8n_email');
+    if (savedName && savedEmail) {
+      setN8nConfig({ name: savedName, email: savedEmail });
+    }
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -123,6 +135,26 @@ export default function App() {
     setMessages(prev => [...prev, newMsg]);
     setQuestion('');
     setAsking(true);
+
+    if (sendViaN8n) {
+      try {
+        const res = await fetch('/api/trigger-n8n', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: newMsg.content, name: n8nConfig.name, email: n8nConfig.email })
+        });
+        if (res.ok) {
+           setMessages(prev => [...prev, { role: 'rag', content: `Your question has been securely forwarded to n8n. The response will be emailed to ${n8nConfig.email}.` }]);
+        } else {
+           const errData = await res.json();
+           setMessages(prev => [...prev, { role: 'rag', content: `Failed to trigger n8n: ${errData.error || 'Check server configuration.'}` }]);
+        }
+      } catch (err: any) {
+        setMessages(prev => [...prev, { role: 'rag', content: `Network error reaching backend: ${err.message}` }]);
+      }
+      setAsking(false);
+      return;
+    }
 
     try {
       const res = await fetch('/ask', {
@@ -358,27 +390,102 @@ export default function App() {
 
             {/* Input box */}
             <div className={`absolute bottom-0 w-full p-6 bg-gradient-to-t ${isDark ? 'from-[#0a0a0a] via-[#0a0a0a]' : 'from-white via-white'} to-transparent transition-colors duration-300`}>
-               <form onSubmit={handleAsk} className={`max-w-2xl mx-auto relative border ${t.inputBorder} ${t.inputBg} rounded-xl p-2 flex items-center transition-all shadow-lg`}>
-                  <input 
-                    type="text" 
-                    value={question}
-                    onChange={e => setQuestion(e.target.value)}
-                    placeholder="Ask the knowledge base anything..."
-                    className={`flex-1 bg-transparent border-none text-sm ${t.inputText} px-4 focus:outline-none focus:ring-0`}
-                    disabled={asking || (stats.status !== 'Completed' && webStatus !== 'Completed')}
-                  />
-                  <button 
-                    type="submit"
-                    disabled={asking || !question.trim() || (stats.status !== 'Completed' && webStatus !== 'Completed')}
-                    className={`bg-zinc-200 hover:bg-zinc-300 text-black dark:bg-zinc-200 dark:hover:bg-white dark:text-black font-bold text-xs uppercase tracking-widest px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2`}
-                  >
-                    Send
-                  </button>
-               </form>
+               <div className="max-w-2xl mx-auto flex flex-col gap-2 relative">
+                 <div className="flex items-center gap-2 pl-2">
+                   <input 
+                     type="checkbox" 
+                     id="n8nToggle" 
+                     checked={sendViaN8n} 
+                     onChange={(e) => {
+                       const checked = e.target.checked;
+                       if (checked && (!n8nConfig.name || !n8nConfig.email)) {
+                         setShowN8nModal(true);
+                       } else {
+                         setSendViaN8n(checked);
+                       }
+                     }} 
+                     className="w-3 h-3 cursor-pointer"
+                   />
+                   <label htmlFor="n8nToggle" className={`text-[10px] uppercase tracking-widest font-bold ${sendViaN8n ? t.textMain : t.textMuted} cursor-pointer`}>Route response to n8n email</label>
+                 </div>
+                 <form onSubmit={handleAsk} className={`border ${t.inputBorder} ${t.inputBg} rounded-xl p-2 flex items-center transition-all shadow-lg`}>
+                    <input 
+                      type="text" 
+                      value={question}
+                      onChange={e => setQuestion(e.target.value)}
+                      placeholder="Ask the knowledge base anything..."
+                      className={`flex-1 bg-transparent border-none text-sm ${t.inputText} px-4 focus:outline-none focus:ring-0`}
+                      disabled={asking || (stats.status !== 'Completed' && webStatus !== 'Completed')}
+                    />
+                    <button 
+                      type="submit"
+                      disabled={asking || !question.trim() || (stats.status !== 'Completed' && webStatus !== 'Completed')}
+                      className={`bg-zinc-200 hover:bg-zinc-300 text-black dark:bg-zinc-200 dark:hover:bg-white dark:text-black font-bold text-xs uppercase tracking-widest px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2`}
+                    >
+                      Send
+                    </button>
+                 </form>
+               </div>
             </div>
          </section>
-
       </main>
+
+      {showN8nModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${t.card} border ${t.border} p-8 rounded-2xl max-w-md w-full relative shadow-2xl`}>
+            <h2 className={`text-xl font-bold ${t.textHeading} mb-2 tracking-wide uppercase`}>n8n Configuration</h2>
+            <p className={`${t.textMuted} text-xs mb-6 tracking-wide leading-relaxed`}>
+              Please enter your details to route AI responses directly to your email via n8n.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-[10px] uppercase font-bold tracking-widest ${t.textMuted} mb-2`}>Name</label>
+                <input 
+                  type="text" 
+                  value={n8nConfig.name}
+                  onChange={e => setN8nConfig({...n8nConfig, name: e.target.value})}
+                  className={`w-full bg-transparent border ${t.border} rounded-lg p-3 text-sm focus:outline-none focus:border-zinc-500 transition-colors ${t.inputText}`}
+                  placeholder="John Doe"
+                />
+              </div>
+              <div>
+                <label className={`block text-[10px] uppercase font-bold tracking-widest ${t.textMuted} mb-2`}>Email</label>
+                <input 
+                  type="email" 
+                  value={n8nConfig.email}
+                  onChange={e => setN8nConfig({...n8nConfig, email: e.target.value})}
+                  className={`w-full bg-transparent border ${t.border} rounded-lg p-3 text-sm focus:outline-none focus:border-zinc-500 transition-colors ${t.inputText}`}
+                  placeholder="john@example.com"
+                />
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => setShowN8nModal(false)}
+                  className={`flex-1 border ${t.borderMuted} hover:bg-zinc-100 dark:hover:bg-zinc-800 text-black dark:text-white font-bold text-xs uppercase tracking-widest py-3 rounded-lg transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    if (n8nConfig.name && n8nConfig.email) {
+                      localStorage.setItem('n8n_name', n8nConfig.name);
+                      localStorage.setItem('n8n_email', n8nConfig.email);
+                      setShowN8nModal(false);
+                      setSendViaN8n(true);
+                    } else {
+                      alert("Please fill in your name and email.");
+                    }
+                  }}
+                  className={`flex-1 bg-zinc-200 hover:bg-zinc-300 text-black dark:bg-white dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-widest py-3 rounded-lg transition-colors`}
+                >
+                  Save Config
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {
