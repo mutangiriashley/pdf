@@ -11,6 +11,8 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState({ chunks: 0, latency: 0, status: 'Awaiting Upload', vectorSize: '-', chunkingLogic: '-' });
+  const [webStatus, setWebStatus] = useState('Not Loaded');
+  const [crawling, setCrawling] = useState(false);
   
   const [modelStatus, setModelStatus] = useState<'loading' | 'downloading' | 'ready' | 'error'>('loading');
   const [modelProgress, setModelProgress] = useState(0);
@@ -76,6 +78,30 @@ export default function App() {
     setUploading(false);
   };
 
+  const handleCrawl = async () => {
+    setCrawling(true);
+    setWebStatus('Crawling...');
+    try {
+      const res = await fetch('/api/crawl-zaio', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setWebStatus('Completed');
+        setStats(s => ({ 
+          ...s, 
+          chunks: data.totalVectorSize, 
+          latency: data.latency || s.latency,
+          vectorSize: data.vectorSize ? `${data.vectorSize} Dimensions` : s.vectorSize,
+          chunkingLogic: data.chunkingLogic || s.chunkingLogic
+        }));
+      } else {
+        setWebStatus('Failed');
+      }
+    } catch (err) {
+      setWebStatus('Error');
+    }
+    setCrawling(false);
+  };
+
   const handleDebug = async () => {
     try {
       const res = await fetch('/api/debug');
@@ -112,7 +138,7 @@ export default function App() {
           role: 'rag', 
           content: data.answer, 
           source: data.source,
-          confidence: '99%' // i'm sorry, i had to mock confidence percentage to save time
+          confidence: data.confidence
         }]);
         setStats(s => ({ ...s, latency: data.latency || 0 }));
       } else {
@@ -131,14 +157,14 @@ export default function App() {
          <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${t.dotShadow}`} />
             <span className={`font-bold ${t.textHeading} text-sm tracking-widest uppercase flex items-center gap-2`}>
-              ZAIO-DOCS <span className={`${t.textMuted} font-normal`}>v1.0.4</span>
+              NEURAL-DOCS <span className={`${t.textMuted} font-normal`}>v1.0.4</span>
             </span>
          </div>
          <div className={`hidden md:flex items-center gap-8 ${t.textMuted} font-medium`}>
             <span className={`${t.textHighlight} tracking-widest flex items-center gap-2`}>
               {modelStatus === 'ready' ? 'SYSTEM ONLINE' : 'INITIALIZING EMBEDDING...'}
             </span>
-            <span className="tracking-widest">EMBEDDING DB: <span className={t.textMain}>LOCAL</span></span>
+            <span className="tracking-widest">VECTOR DB: <span className={t.textMain}>LOCAL-IN-MEMORY</span></span>
             <div className="flex items-center gap-4">
               <button 
                 onClick={handleDebug}
@@ -171,7 +197,7 @@ export default function App() {
                  <label className={`cursor-pointer border border-dashed ${t.uploadZone} rounded-xl p-6 mb-8 flex flex-col items-center justify-center gap-3 text-center group transition-colors`}>
                    <MousePointer2 className={`w-8 h-8 ${t.textMuted} group-hover:scale-110 transition-transform ${isDark ? 'group-hover:text-white' : 'group-hover:text-black'}`} />
                    <div>
-                     <p className={`text-sm font-medium ${t.textHeading}`}>UPLOAD HERE</p>
+                     <p className={`text-sm font-medium ${t.textHeading}`}>Click here to upload</p>
                      <p className={`text-[11px] ${t.textMuted} mt-1`}>PDF documents only</p>
                    </div>
                    <input type="file" accept=".pdf" className="hidden" onChange={e => e.target.files && setFile(e.target.files[0])} />
@@ -242,6 +268,25 @@ export default function App() {
                  </div>
                </div>
 
+               <div className={`border-b ${t.border} pb-8 mb-8 transition-colors`}>
+                 <p className={`text-[10px] ${t.textMuted} uppercase tracking-widest font-bold mb-4`}>Web Source</p>
+                 <div className="flex items-center justify-between mb-4">
+                   <span className="text-sm font-medium">ZAIO Website</span>
+                   <span className={`text-[10px] uppercase tracking-widest ${webStatus === 'Completed' ? t.textHighlight : t.textMuted}`}>
+                     {webStatus}
+                   </span>
+                 </div>
+                 {webStatus !== 'Completed' && (
+                   <button
+                     onClick={handleCrawl}
+                     disabled={crawling || modelStatus !== 'ready'}
+                     className={`w-full ${t.cardHover} border ${t.borderMuted} text-xs font-bold uppercase tracking-widest py-3 rounded-xl transition-all disabled:opacity-50 text-zinc-300 dark:text-zinc-500 hover:text-white dark:hover:text-black`}
+                   >
+                     {crawling ? 'Crawling...' : 'Load ZAIO Data'}
+                   </button>
+                 )}
+               </div>
+
                <div className={`mt-auto ${t.card} rounded-xl p-4 border ${t.border} flex justify-between items-end transition-colors`}>
                  <div>
                     <p className={`text-[10px] ${t.textMuted} uppercase tracking-widest font-bold mb-1`}>Live Stats</p>
@@ -264,7 +309,7 @@ export default function App() {
          <section className={`flex-1 rounded-2xl border ${t.border} ${t.panel} flex flex-col relative h-[500px] xl:h-auto transition-colors duration-300`}>
             <div className={`absolute top-0 w-full text-center py-6 border-b ${t.border} ${isDark ? 'bg-[#0a0a0a]/90' : 'bg-white/90'} backdrop-blur z-10 transition-colors duration-300`}>
                 <span className={`text-[10px] tracking-widest ${t.textMuted} uppercase font-bold ${t.panel} px-4 relative z-10 flex items-center justify-center gap-2 mx-auto w-fit transition-colors duration-300`}>
-                  <Search className="w-3 h-3" /> Chat Area
+                  <Search className="w-3 h-3" /> Query Engine Playground
                 </span>
                 <div className={`absolute top-1/2 left-0 w-full h-px ${t.border} -translate-y-1/2`}></div>
             </div>
@@ -318,13 +363,13 @@ export default function App() {
                     type="text" 
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
-                    placeholder="Ask the handbook anything..."
+                    placeholder="Ask the knowledge base anything..."
                     className={`flex-1 bg-transparent border-none text-sm ${t.inputText} px-4 focus:outline-none focus:ring-0`}
-                    disabled={asking || stats.status !== 'Completed'}
+                    disabled={asking || (stats.status !== 'Completed' && webStatus !== 'Completed')}
                   />
                   <button 
                     type="submit"
-                    disabled={asking || !question.trim() || stats.status !== 'Completed'}
+                    disabled={asking || !question.trim() || (stats.status !== 'Completed' && webStatus !== 'Completed')}
                     className={`bg-zinc-200 hover:bg-zinc-300 text-black dark:bg-zinc-200 dark:hover:bg-white dark:text-black font-bold text-xs uppercase tracking-widest px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2`}
                   >
                     Send
