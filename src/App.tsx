@@ -187,10 +187,12 @@ export default function App() {
       {/* Top Navbar */}
       <header className={`border-b ${t.nav} px-6 py-4 flex items-center justify-between text-[11px] font-mono shrink-0 transition-colors duration-300`}>
          <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${t.dotShadow}`} />
-            <span className={`font-bold ${t.textHeading} text-sm tracking-widest uppercase flex items-center gap-2`}>
-              NEURAL-DOCS <span className={`${t.textMuted} font-normal`}>v1.0.4</span>
-            </span>
+            <img 
+              src="https://www.zaio.io/_next/static/media/logo.1a24392f.png" 
+              alt="Zaio" 
+              className={`h-6 transition-all duration-300 ${isDark ? 'invert' : ''}`}
+              referrerPolicy="no-referrer"
+            />
          </div>
          <div className={`hidden md:flex items-center gap-8 ${t.textMuted} font-medium`}>
             <span className={`${t.textHighlight} tracking-widest flex items-center gap-2`}>
