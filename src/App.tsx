@@ -1,5 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { File, Search, HardDrive, Activity, MousePointer2, Trash2, Loader2, Sun, Moon } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { getTheme } from './theme';
 
 type Message = { role: 'user' | 'rag', content: string, source?: string, confidence?: string, n8nStatus?: 'success' | 'failed', n8nEmail?: string };
@@ -363,7 +368,18 @@ export default function App() {
                     </div>
                     <div className="flex-1">
                       <div className={`${msg.role === 'user' ? t.bubbleUser : t.bubbleRag} rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-sm transition-colors whitespace-pre-wrap`}>
-                        {msg.content}
+                        {msg.role === 'user' ? (
+                          msg.content
+                        ) : (
+                          <div className={`prose ${isDark ? 'prose-invert' : ''} prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/10 dark:prose-pre:bg-white/5`}>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        )}
                       </div>
                       {msg.role === 'rag' && (msg.source || msg.n8nStatus) && (
                         <div className="flex flex-wrap gap-2 mt-3 ml-2">
