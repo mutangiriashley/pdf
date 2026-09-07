@@ -113,7 +113,7 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "meta-llama/llama-3.1-8b-instruct:free", // Reliable fast model on OpenRouter
+      model: "openrouter:free", // Reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
