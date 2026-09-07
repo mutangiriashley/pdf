@@ -113,7 +113,7 @@ async function answerWithOpenRouter(question: string, context: string) {
       "X-Title": "PDF ANALYZER"
     },
     body: JSON.stringify({
-      model: "openrouter/free:", // Reliable fast model on OpenRouter
+      model: "meta-llama/llama-3.1-8b-instruct:free", // Reliable fast model on OpenRouter
       messages: [
         {
           role: "system",
@@ -391,7 +391,7 @@ async function startServer() {
   // Endpoint to securely trigger n8n from the frontend
   app.post('/api/trigger-n8n', async (req, res) => {
     try {
-      const { question, name, email } = req.body;
+      const { question, name, email, answer, source } = req.body;
       const webhookUrl = process.env.N8N_WEBHOOK_URL;
       
       if (!webhookUrl) {
@@ -401,7 +401,7 @@ async function startServer() {
       const n8nRes = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, name, email })
+        body: JSON.stringify({ question, name, email, answer, source })
       });
 
       if (n8nRes.ok) {
