@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { File, Search, HardDrive, Activity, MousePointer2, Trash2, Loader2, Sun, Moon } from 'lucide-react';
 import { getTheme } from './theme';
 
-type Message = { role: 'user' | 'rag', content: string, source?: string, confidence?: string };
+type Message = { role: 'user' | 'rag', content: string, source?: string, confidence?: string, n8nStatus?: 'success' | 'failed', n8nEmail?: string };
 
 export default function App() {
   const [isDark, setIsDark] = useState(true);
@@ -136,6 +136,8 @@ export default function App() {
     setQuestion('');
     setAsking(true);
 
+    let n8nStatus: 'success' | 'failed' | undefined = undefined;
+
     if (sendViaN8n) {
       try {
         const res = await fetch('/api/trigger-n8n', {
@@ -144,16 +146,13 @@ export default function App() {
           body: JSON.stringify({ question: newMsg.content, name: n8nConfig.name, email: n8nConfig.email })
         });
         if (res.ok) {
-           setMessages(prev => [...prev, { role: 'rag', content: `Your question has been securely forwarded to n8n. The response will be emailed to ${n8nConfig.email}.` }]);
+           n8nStatus = 'success';
         } else {
-           const errData = await res.json();
-           setMessages(prev => [...prev, { role: 'rag', content: `Failed to trigger n8n: ${errData.error || 'Check server configuration.'}` }]);
+           n8nStatus = 'failed';
         }
       } catch (err: any) {
-        setMessages(prev => [...prev, { role: 'rag', content: `Network error reaching backend: ${err.message}` }]);
+        n8nStatus = 'failed';
       }
-      setAsking(false);
-      return;
     }
 
     try {
@@ -170,7 +169,8 @@ export default function App() {
           role: 'rag', 
           content: data.answer, 
           source: data.source,
-          confidence: data.confidence
+          confidence: data.confidence,
+          ...(n8nStatus ? { n8nStatus, n8nEmail: n8nConfig.email } : {})
         }]);
         setStats(s => ({ ...s, latency: data.latency || 0 }));
       } else {
@@ -178,8 +178,9 @@ export default function App() {
       }
     } catch (err: any) {
       setMessages(prev => [...prev, { role: 'rag', content: `Network Error: ${err.message}` }]);
+    } finally {
+      setAsking(false);
     }
-    setAsking(false);
   };
 
   return (
@@ -364,14 +365,43 @@ export default function App() {
                       <div className={`${msg.role === 'user' ? t.bubbleUser : t.bubbleRag} rounded-2xl rounded-tl-sm p-4 text-sm leading-relaxed shadow-sm transition-colors whitespace-pre-wrap`}>
                         {msg.content}
                       </div>
-                      {msg.role === 'rag' && msg.source && (
-                        <div className="flex gap-3 mt-3 ml-2">
-                           <span className={`${t.badge} text-[10px] uppercase tracking-wider px-3 py-1 rounded-full transition-colors`}>
-                             Source: {msg.source}
-                           </span>
+                      {msg.role === 'rag' && (msg.source || msg.n8nStatus) && (
+                        <div className="flex flex-wrap gap-2 mt-3 ml-2">
+                           {msg.source && (
+                             <div className="relative group">
+                               <span className={`${t.badge} cursor-help text-[10px] uppercase tracking-wider px-3 py-1 rounded-full transition-colors flex items-center gap-1`}>
+                                 <Search size={12} /> Source: {msg.source.slice(0, 30)}{msg.source.length > 30 ? '...' : ''}
+                               </span>
+                               <div className={`absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 rounded-lg shadow-xl border ${t.border} ${t.card} z-10 text-xs normal-case`}>
+                                 <p className="font-bold mb-1">Source Details</p>
+                                 <p className="break-words mb-2 opacity-80">{msg.source}</p>
+                                 {msg.source.startsWith('http') && (
+                                   <a href={msg.source} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                                     Visit Website →
+                                   </a>
+                                 )}
+                               </div>
+                             </div>
+                           )}
                            {msg.confidence && (
                              <span className={`${t.badge} text-[10px] uppercase tracking-wider px-3 py-1 rounded-full transition-colors`}>
                                Confidence: {msg.confidence}
+                             </span>
+                           )}
+                           {msg.n8nStatus === 'success' && (
+                             <div className="relative group">
+                               <span className={`${t.badge} cursor-help text-[10px] uppercase tracking-wider px-3 py-1 rounded-full transition-colors flex items-center gap-1`}>
+                                 <Activity size={12} /> Routed to n8n
+                               </span>
+                               <div className={`absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 rounded-lg shadow-xl border ${t.border} ${t.card} z-10 text-xs normal-case`}>
+                                 <p className="font-bold mb-1">Email Automation</p>
+                                 <p className="opacity-80">This response was automatically routed to your n8n workflow and securely forwarded to <span className="font-medium">{msg.n8nEmail}</span>.</p>
+                               </div>
+                             </div>
+                           )}
+                           {msg.n8nStatus === 'failed' && (
+                             <span className={`bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1`}>
+                               n8n Route Failed
                              </span>
                            )}
                         </div>
