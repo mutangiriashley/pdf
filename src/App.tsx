@@ -142,15 +142,42 @@ export default function App() {
     setAsking(true);
 
     let n8nStatus: 'success' | 'failed' | undefined = undefined;
+    let aiData: any = null;
 
-    if (sendViaN8n) {
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: newMsg.content })
+      });
+      
+      aiData = await res.json();
+      
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: 'rag', content: `Error: ${aiData.error || 'Failed to get answer'}` }]);
+        setAsking(false);
+        return;
+      }
+    } catch (err: any) {
+      setMessages(prev => [...prev, { role: 'rag', content: `Network Error: ${err.message}` }]);
+      setAsking(false);
+      return;
+    }
+
+    if (sendViaN8n && aiData) {
       try {
-        const res = await fetch('/api/trigger-n8n', {
+        const n8nRes = await fetch('/api/trigger-n8n', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: newMsg.content, name: n8nConfig.name, email: n8nConfig.email })
+          body: JSON.stringify({ 
+            question: newMsg.content, 
+            name: n8nConfig.name, 
+            email: n8nConfig.email,
+            answer: aiData.answer,
+            source: aiData.source
+          })
         });
-        if (res.ok) {
+        if (n8nRes.ok) {
            n8nStatus = 'success';
         } else {
            n8nStatus = 'failed';
@@ -160,32 +187,15 @@ export default function App() {
       }
     }
 
-    try {
-      const res = await fetch('/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: newMsg.content })
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        setMessages(prev => [...prev, { 
-          role: 'rag', 
-          content: data.answer, 
-          source: data.source,
-          confidence: data.confidence,
-          ...(n8nStatus ? { n8nStatus, n8nEmail: n8nConfig.email } : {})
-        }]);
-        setStats(s => ({ ...s, latency: data.latency || 0 }));
-      } else {
-        setMessages(prev => [...prev, { role: 'rag', content: `Error: ${data.error || 'Failed to get answer'}` }]);
-      }
-    } catch (err: any) {
-      setMessages(prev => [...prev, { role: 'rag', content: `Network Error: ${err.message}` }]);
-    } finally {
-      setAsking(false);
-    }
+    setMessages(prev => [...prev, { 
+      role: 'rag', 
+      content: aiData.answer, 
+      source: aiData.source,
+      confidence: aiData.confidence,
+      ...(n8nStatus ? { n8nStatus, n8nEmail: n8nConfig.email } : {})
+    }]);
+    setStats(s => ({ ...s, latency: aiData.latency || 0 }));
+    setAsking(false);
   };
 
   return (
